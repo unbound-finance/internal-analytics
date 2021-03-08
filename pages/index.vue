@@ -10,14 +10,41 @@
     <div v-if="loading">Loading...</div>
     <div v-else style="margin-top: 2rem">
       <ul>
-        <li>Total Adds: ${{ analytics.totalMints.toFixed(2) }}</li>
-        <li>Total Removes: ${{ analytics.totalBurns.toFixed(2) }}</li>
-        <li>Total Liquidity: ${{ analytics.totalLiq.toFixed(2) }}</li>
-        <li>Min. Liquidity: ${{ analytics.minLiq }}</li>
-        <li>Max. Liquidity: ${{ analytics.maxLiq }}</li>
-        <li>10M transaction: {{ analytics.tenMillionTx }}</li>
-        <li>Min. Price: ${{ analytics.minPrice }}</li>
-        <li>Max. Price: ${{ analytics.maxPrice }}</li>
+        <li :title="analytics.totalMints">
+          Total Adds: ${{ nFormatter(analytics.totalMints, 2) }}
+        </li>
+        <li :title="analytics.totalBurns">
+          Total Removes: ${{ nFormatter(analytics.totalBurns, 2) }}
+        </li>
+        <li :title="analytics.totalLiq">
+          Total Liquidity: ${{ nFormatter(analytics.totalLiq, 2) }}
+        </li>
+        <li :title="analytics.minLiq">
+          Min. Liquidity: ${{ nFormatter(analytics.minLiq, 2) }}
+        </li>
+        <li :title="analytics.maxLiq">
+          Max. Liquidity: ${{ nFormatter(analytics.maxLiq, 2) }}
+          <button @click="showTop10 = !showTop10">
+            {{ showTop10 ? 'hide' : 'show' }} top 10
+          </button>
+        </li>
+        <template v-if="showTop10">
+          <ol style="padding: 1rem 2rem">
+            <li
+              v-for="liq in analytics.top10"
+              :key="liq.timestamp"
+              :title="liq.amountUSD"
+            >
+              {{ nFormatter(Number(liq.amountUSD), 2) }}
+            </li>
+          </ol>
+        </template>
+        <li :title="analytics.minPrice">
+          Min. Price: ${{ nFormatter(analytics.minPrice, 2) }}
+        </li>
+        <li :title="analytics.maxPrice">
+          Max. Price: ${{ nFormatter(analytics.maxPrice, 2) }}
+        </li>
       </ul>
     </div>
     <!-- <div class="chart">
@@ -41,10 +68,13 @@
 import { getMints, getBurns } from '~/services/liquidity.service.js'
 import { getPrice } from '~/services/price.service.js'
 
+import { nFormatter } from '~/utils'
+
 export default {
   data() {
     return {
       loading: false,
+      showTop10: false,
       pair: '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
       timestamp: null,
       blocks: null,
@@ -58,6 +88,7 @@ export default {
         tenMillionTx: false,
         minPrice: 0,
         maxPrice: 0,
+        top10: [],
       },
 
       priceData: {
@@ -85,6 +116,7 @@ export default {
     },
   },
   methods: {
+    nFormatter,
     blockTimestamp(blocks) {
       const now = new Date()
       const epoch = Math.round(now.getTime() / 1000) // get epoch of current time
@@ -203,6 +235,9 @@ export default {
       this.analytics.maxLiq = Number(
         sortedMints[sortedMints.length - 1].amountUSD
       ).toFixed(2)
+      this.analytics.top10 = uniMints
+        .slice(Math.max(uniMints.length - 10, 0))
+        .reverse()
       this.analytics.tenMillionTx = sortedMints.find(
         (x) => Number(x.amountUSD) >= 10000000
       )
