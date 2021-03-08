@@ -1,7 +1,11 @@
 <template>
   <div class="container">
     <form @submit.prevent="fetchData">
-      <input v-model="pair" type="text" placeholder="Pair Address" />
+      <select id="pools" v-model="pair" name="pools">
+        <option v-for="p in pools" :key="p.address" :value="p.address">
+          {{ p.name }}
+        </option>
+      </select>
       <input v-model="blocks" type="number" placeholder="Last blocks" />
       <span style="font-size: 8pt">OR</span>
       <input v-model="date" type="date" placeholder="Select Date" />
@@ -90,6 +94,33 @@ export default {
         maxPrice: 0,
         top10: [],
       },
+
+      pools: [
+        {
+          name: 'DAI-USDT',
+          address: '0xb20bd5d04be54f870d5c0d3ca85d82b34b836405',
+        },
+        {
+          name: 'DAI-USDC',
+          address: '0xae461ca67b15dc8dc81ce7615e0320da1a9ab8d5',
+        },
+        {
+          name: 'USDC-USDT',
+          address: '0x3041cbd36888becc7bbcbc0045e3b1f144466f5f',
+        },
+        {
+          name: 'DAI-ETH',
+          address: '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
+        },
+        {
+          name: 'USDC-ETH',
+          address: '0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc',
+        },
+        {
+          name: 'USDT-ETH',
+          address: '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+        },
+      ],
 
       priceData: {
         labels: [],
