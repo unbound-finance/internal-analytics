@@ -1,0 +1,11 @@
+query($timestamp: Int, $pair: String!) {
+  mints(
+    first: 100
+    where: { pair: $pair, timestamp_gte: $timestamp }
+    orderBy: "timestamp"
+    orderDirection: "asc"
+  ) {
+    timestamp
+    amountUSD
+  }
+}

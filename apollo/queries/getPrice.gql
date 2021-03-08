@@ -1,0 +1,14 @@
+query($timestamp: Int!, $pair: String!) {
+  pairDayDatas(
+    first: 100
+    where: { pairAddress: $pair, date_gt: $timestamp }
+    orderBy: "date"
+    orderDirection: "asc"
+  ) {
+    date
+    reserve0
+    reserve1
+    totalSupply
+    reserveUSD
+  }
+}

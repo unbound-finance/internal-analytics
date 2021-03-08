@@ -1,0 +1,11 @@
+query($timestamp: Int!, $pair: String!) {
+  burns(
+    first: 100
+    where: { pair: $pair, timestamp_gte: $timestamp }
+    orderBy: "timestamp"
+    orderDirection: "asc"
+  ) {
+    timestamp
+    amountUSD
+  }
+}
