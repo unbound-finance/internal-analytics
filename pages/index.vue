@@ -39,7 +39,7 @@
               :key="liq.timestamp"
               :title="liq.amountUSD"
             >
-              {{ nFormatter(Number(liq.amountUSD), 2) }}
+              {{ nFormatter(Number(liq.amountUSD) || 0, 2) }}
             </li>
           </ol>
         </template>
@@ -51,23 +51,25 @@
         </li>
       </ul>
     </div>
-    <!-- <div class="chart">
-      <LineChart
+    <div class="chart">
+      <!-- <LineChart
+        v-if="liquidityData.datasets.length > 0"
         :data="liquidityData"
         :options="lineChartOptions"
         style="width: 50%"
-      />
+      /> -->
       <LineChart
+        v-if="priceData.datasets.length > 0"
         :data="priceData"
         :options="lineChartOptions"
         style="width: 50%"
       />
-    </div> -->
+    </div>
   </div>
 </template>
 
 <script>
-// import LineChart from '~/components/Chart/LineChart'
+import LineChart from '~/components/Chart/LineChart'
 
 import { getMints, getBurns } from '~/services/liquidity.service.js'
 import { getPrice } from '~/services/price.service.js'
@@ -75,6 +77,7 @@ import { getPrice } from '~/services/price.service.js'
 import { nFormatter } from '~/utils'
 
 export default {
+  components: { LineChart },
   data() {
     return {
       loading: false,
@@ -234,52 +237,116 @@ export default {
     // },
 
     async fetchData() {
+      this.liquidityData.labels = []
+      this.liquidityData.datasets = []
+      this.priceData.labels = []
+      this.priceData.datasets = []
       this.loading = true
       const uniMints = await getMints(this.$apollo, this.pair, this.timestamp)
       const uniBurns = await getBurns(this.$apollo, this.pair, this.timestamp)
       const uniPrice = await getPrice(this.$apollo, this.pair, this.timestamp)
 
-      const sortedMints = uniMints.sort(
-        (a, b) => Number(a.amountUSD) - Number(b.amountUSD)
-      )
+      if (uniMints.length > 0 && uniBurns.length > 0 && uniPrice.length > 0) {
+        const sortedMints =
+          uniMints.sort((a, b) => Number(a.amountUSD) - Number(b.amountUSD)) ||
+          []
 
-      const sortedPrice = (
-        await Promise.all(
-          uniPrice.map((a) => {
-            return Number(a.reserve0 * 2) / Number(a.totalSupply)
-          })
+        const mintAmount =
+          (await Promise.all(
+            uniMints.map((a) => {
+              return Number(a.amountUSD)
+            })
+          )) || []
+        const burnAmount =
+          (await Promise.all(
+            uniBurns.map((a) => {
+              return Number(a.amountUSD)
+            })
+          )) || []
+
+        const lptPrice =
+          (await Promise.all(
+            uniPrice.map((a) => {
+              return Number(a.reserve0 * 2) / Number(a.totalSupply)
+            })
+          )) || []
+
+        const sortedPrice =
+          (
+            await Promise.all(
+              uniPrice.map((a) => {
+                return Number(a.reserve0 * 2) / Number(a.totalSupply)
+              })
+            )
+          ).sort((a, b) => Number(a) - Number(b)) || []
+
+        this.analytics.totalMints =
+          sortedMints.reduce(
+            (total, obj) => Number(obj.amountUSD) + total || 0,
+            0
+          ) || 0
+        this.analytics.totalBurns =
+          uniBurns.reduce(
+            (total, obj) => Number(obj.amountUSD) + total || 0,
+            0
+          ) || 0
+        this.analytics.totalLiq =
+          this.analytics.totalMints - this.analytics.totalBurns
+
+        this.analytics.minLiq = Number(sortedMints[0].amountUSD).toFixed(2) || 0
+        this.analytics.maxLiq =
+          Number(sortedMints[sortedMints.length - 1].amountUSD).toFixed(2) || 0
+        this.analytics.top10 = uniMints
+          .slice(Math.max(uniMints.length - 10, 0))
+          .reverse()
+        this.analytics.tenMillionTx = sortedMints.find(
+          (x) => (Number(x.amountUSD) || 0) >= 10000000
         )
-      ).sort((a, b) => Number(a) - Number(b))
+          ? sortedMints.find((x) => Number(x.amountUSD) >= 10000000)
+          : false
 
-      this.analytics.totalMints = sortedMints.reduce(
-        (total, obj) => Number(obj.amountUSD) + total || 0,
-        0
-      )
-      this.analytics.totalBurns = uniBurns.reduce(
-        (total, obj) => Number(obj.amountUSD) + total || 0,
-        0
-      )
-      this.analytics.totalLiq =
-        this.analytics.totalMints - this.analytics.totalBurns
+        this.analytics.minPrice = Number(sortedPrice[0]).toFixed(2) || 0
+        this.analytics.maxPrice =
+          Number(sortedPrice[sortedPrice.length - 1]).toFixed(2) || 0
 
-      this.analytics.minLiq = Number(sortedMints[0].amountUSD).toFixed(2)
-      this.analytics.maxLiq = Number(
-        sortedMints[sortedMints.length - 1].amountUSD
-      ).toFixed(2)
-      this.analytics.top10 = uniMints
-        .slice(Math.max(uniMints.length - 10, 0))
-        .reverse()
-      this.analytics.tenMillionTx = sortedMints.find(
-        (x) => Number(x.amountUSD) >= 10000000
-      )
-        ? sortedMints.find((x) => Number(x.amountUSD) >= 10000000)
-        : false
+        this.liquidityData.labels =
+          (await Promise.all(
+            uniMints.map((a) => {
+              return this.$dayjs.unix(a.timestamp).format('DD-MM-YYYY HH:mm')
+            })
+          )) || []
 
-      this.analytics.minPrice = Number(sortedPrice[0]).toFixed(2)
-      this.analytics.maxPrice = Number(
-        sortedPrice[sortedPrice.length - 1]
-      ).toFixed(2)
-      this.loading = false
+        this.liquidityData.datasets.push(
+          {
+            label: 'Adds',
+            data: mintAmount,
+            borderColor: '#3861fb',
+            backgroundColor: '#ffffff00',
+          },
+          {
+            label: 'Burns',
+            data: burnAmount,
+            borderColor: '#ffbb1f',
+            backgroundColor: '#ffffff00',
+          }
+        )
+
+        this.priceData.labels =
+          (await Promise.all(
+            uniPrice.map((a) => {
+              return this.$dayjs.unix(a.date).format('DD-MM-YYYY')
+            })
+          )) || []
+        this.priceData.datasets.push({
+          label: 'Price',
+          data: lptPrice,
+          borderColor: '#1dc683',
+          backgroundColor: '#ffffff00',
+        })
+        this.loading = false
+      } else {
+        this.loading = false
+      }
     },
   },
 }
