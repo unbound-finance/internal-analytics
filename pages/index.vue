@@ -246,7 +246,7 @@ export default {
       const uniBurns = await getBurns(this.$apollo, this.pair, this.timestamp)
       const uniPrice = await getPrice(this.$apollo, this.pair, this.timestamp)
 
-      if (uniMints.length > 0 && uniBurns.length > 0 && uniPrice.length > 0) {
+      if (uniMints.length > 0 && uniBurns.length > 0) {
         const sortedMints =
           uniMints.sort((a, b) => Number(a.amountUSD) - Number(b.amountUSD)) ||
           []
@@ -263,22 +263,6 @@ export default {
               return Number(a.amountUSD)
             })
           )) || []
-
-        const lptPrice =
-          (await Promise.all(
-            uniPrice.map((a) => {
-              return Number(a.reserve0 * 2) / Number(a.totalSupply)
-            })
-          )) || []
-
-        const sortedPrice =
-          (
-            await Promise.all(
-              uniPrice.map((a) => {
-                return Number(a.reserve0 * 2) / Number(a.totalSupply)
-              })
-            )
-          ).sort((a, b) => Number(a) - Number(b)) || []
 
         this.analytics.totalMints =
           sortedMints.reduce(
@@ -305,10 +289,6 @@ export default {
           ? sortedMints.find((x) => Number(x.amountUSD) >= 10000000)
           : false
 
-        this.analytics.minPrice = Number(sortedPrice[0]).toFixed(2) || 0
-        this.analytics.maxPrice =
-          Number(sortedPrice[sortedPrice.length - 1]).toFixed(2) || 0
-
         this.liquidityData.labels =
           (await Promise.all(
             uniMints.map((a) => {
@@ -331,18 +311,40 @@ export default {
           }
         )
 
-        this.priceData.labels =
-          (await Promise.all(
-            uniPrice.map((a) => {
-              return this.$dayjs.unix(a.date).format('DD-MM-YYYY')
-            })
-          )) || []
-        this.priceData.datasets.push({
-          label: 'Price',
-          data: lptPrice,
-          borderColor: '#1dc683',
-          backgroundColor: '#ffffff00',
-        })
+        if (uniPrice.length > 0) {
+          const lptPrice =
+            (await Promise.all(
+              uniPrice.map((a) => {
+                return Number(a.reserve0 * 2) / Number(a.totalSupply)
+              })
+            )) || []
+
+          const sortedPrice =
+            (
+              await Promise.all(
+                uniPrice.map((a) => {
+                  return Number(a.reserve0 * 2) / Number(a.totalSupply)
+                })
+              )
+            ).sort((a, b) => Number(a) - Number(b)) || []
+
+          this.analytics.minPrice = Number(sortedPrice[0]).toFixed(2) || 0
+          this.analytics.maxPrice =
+            Number(sortedPrice[sortedPrice.length - 1]).toFixed(2) || 0
+
+          this.priceData.labels =
+            (await Promise.all(
+              uniPrice.map((a) => {
+                return this.$dayjs.unix(a.date).format('DD-MM-YYYY')
+              })
+            )) || []
+          this.priceData.datasets.push({
+            label: 'Price',
+            data: lptPrice,
+            borderColor: '#1dc683',
+            backgroundColor: '#ffffff00',
+          })
+        }
         this.loading = false
       } else {
         this.loading = false
